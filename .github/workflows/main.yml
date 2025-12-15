@@ -2,21 +2,20 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Prepare SSH key
-  env:
-    SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
-  run: |
-    set -e
-    echo "$SSH_KEY_B64" | tr -d '\n\r ' | base64 -d > /tmp/key
-    chmod 600 /tmp/key
-    ssh-keygen -lf /tmp/key
-
+        env:
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
+        run: |
+          set -e
+          echo "$SSH_KEY_B64" | tr -d '\n\r ' | base64 -d > /tmp/key
+          chmod 600 /tmp/key
+          ssh-keygen -lf /tmp/key
 
       - name: Deploy via SSH
         env:
@@ -32,4 +31,4 @@ jobs:
             docker compose pull
             docker compose up -d --force-recreate
             docker compose ps
-          
+          '

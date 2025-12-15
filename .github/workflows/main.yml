@@ -8,29 +8,22 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate SSH key format (safe)
+      - name: Prepare SSH key
+        env:
+          SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
         run: |
           set -e
-          printf '%s' "${{ secrets.SSH_KEY }}" | tr -d '\r' > /tmp/key
+          echo "$SSH_KEY_B64" | base64 -d > /tmp/key
           chmod 600 /tmp/key
           ssh-keygen -lf /tmp/key
 
-      - name: Test SSH (verbose)
+      - name: Deploy via SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -e
-          printf '%s' "${{ secrets.SSH_KEY }}" | tr -d '\r' > /tmp/key
-          chmod 600 /tmp/key
-          ssh -vvv -o StrictHostKeyChecking=no -i /tmp/key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo CONNECTED && whoami"
-
-      - name: Deploy commands
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          debug: true
-          script: |
+          ssh -o StrictHostKeyChecking=no -i /tmp/key ${SSH_USER}@${SSH_HOST} '
             set -e
             cd ~/compose-lab
             git fetch origin
@@ -38,3 +31,4 @@ jobs:
             docker compose pull
             docker compose up -d --force-recreate
             docker compose ps
+          '

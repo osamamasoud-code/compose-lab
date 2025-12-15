@@ -17,20 +17,26 @@ jobs:
           chmod 600 /tmp/key
           ssh-keygen -lf /tmp/key
 
-      - name: Debug host value
+      - name: Normalize host/user and debug
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_HOST_RAW: ${{ secrets.SSH_HOST }}
+          SSH_USER_RAW: ${{ secrets.SSH_USER }}
         run: |
           set -e
+          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ' )"
+          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ' )"
           echo "SSH_HOST='$SSH_HOST'"
+          echo "SSH_USER='$SSH_USER'"
           getent hosts "$SSH_HOST" || true
 
       - name: Deploy via SSH
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST_RAW: ${{ secrets.SSH_HOST }}
+          SSH_USER_RAW: ${{ secrets.SSH_USER }}
         run: |
           set -e
+          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ' )"
+          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ' )"
           ssh -o StrictHostKeyChecking=no -i /tmp/key ${SSH_USER}@${SSH_HOST} '
             set -e
             cd ~/compose-lab

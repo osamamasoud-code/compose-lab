@@ -11,11 +11,18 @@ jobs:
       - name: Validate SSH key format (safe)
         run: |
           set -e
-          echo "${{ secrets.SSH_KEY }}" > /tmp/key
+          printf '%s' "${{ secrets.SSH_KEY }}" | tr -d '\r' > /tmp/key
           chmod 600 /tmp/key
           ssh-keygen -lf /tmp/key
 
-      - name: SSH Deploy
+      - name: Test SSH (verbose)
+        run: |
+          set -e
+          printf '%s' "${{ secrets.SSH_KEY }}" | tr -d '\r' > /tmp/key
+          chmod 600 /tmp/key
+          ssh -vvv -o StrictHostKeyChecking=no -i /tmp/key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo CONNECTED && whoami"
+
+      - name: Deploy commands
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}

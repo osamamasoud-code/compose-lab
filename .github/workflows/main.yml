@@ -17,6 +17,14 @@ jobs:
           chmod 600 /tmp/key
           ssh-keygen -lf /tmp/key
 
+      - name: Debug host value
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          set -e
+          echo "SSH_HOST='$SSH_HOST'"
+          getent hosts "$SSH_HOST" || true
+
       - name: Deploy via SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}

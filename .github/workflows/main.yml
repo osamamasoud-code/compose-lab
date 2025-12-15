@@ -13,20 +13,28 @@ jobs:
           SSH_KEY_B64: ${{ secrets.SSH_KEY_B64 }}
         run: |
           set -e
-          echo "$SSH_KEY_B64" | tr -d '\n\r ' | base64 -d > /tmp/key
-          chmod 600 /tmp/key
-          ssh-keygen -lf /tmp/key
+          KEY_PATH="$GITHUB_WORKSPACE/key"
+          echo "$SSH_KEY_B64" | tr -d '\n\r ' | base64 -d > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          ssh-keygen -lf "$KEY_PATH"
 
-      - name: Normalize host/user and debug
+      - name: Debug SSH_HOST/SSH_USER safely
         env:
           SSH_HOST_RAW: ${{ secrets.SSH_HOST }}
           SSH_USER_RAW: ${{ secrets.SSH_USER }}
         run: |
           set -e
-          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ' )"
-          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ' )"
-          echo "SSH_HOST='$SSH_HOST'"
-          echo "SSH_USER='$SSH_USER'"
+          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ')"
+          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ')"
+          echo "HOST_LEN=$(printf '%s' "$SSH_HOST" | wc -c)"
+          echo "USER_LEN=$(printf '%s' "$SSH_USER" | wc -c)"
+          python3 - <<'PY'
+import os
+h=os.environ.get("SSH_HOST_RAW","")
+u=os.environ.get("SSH_USER_RAW","")
+print("HOST_ORDS=", [ord(c) for c in h])
+print("USER_ORDS=", [ord(c) for c in u])
+PY
           getent hosts "$SSH_HOST" || true
 
       - name: Deploy via SSH
@@ -35,14 +43,16 @@ jobs:
           SSH_USER_RAW: ${{ secrets.SSH_USER }}
         run: |
           set -e
-          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ' )"
-          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ' )"
-          ssh -o StrictHostKeyChecking=no -i /tmp/key ${SSH_USER}@${SSH_HOST} '
-            set -e
-            cd ~/compose-lab
-            git fetch origin
-            git reset --hard origin/main
-            docker compose pull
-            docker compose up -d --force-recreate
-            docker compose ps
-          '
+          KEY_PATH="$GITHUB_WORKSPACE/key"
+          SSH_HOST="$(printf '%s' "$SSH_HOST_RAW" | tr -d '\r\n ')"
+          SSH_USER="$(printf '%s' "$SSH_USER_RAW" | tr -d '\r\n ')"
+
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -i "$KEY_PATH" "${SSH_USER}@${SSH_HOST}" bash -s <<'EOF'
+set -e
+cd ~/compose-lab
+git fetch origin
+git reset --hard origin/main
+docker compose pull
+docker compose up -d --force-recreate
+docker compose ps
+EOF
